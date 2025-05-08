@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Maszyna Pragnąca</title>
+  <style>
+    :root {
+      --pulse-speed: 6s;
+      --bg-intensity: #0f0f0f;
+    }
+
+    @keyframes pulse {
+      0% { background-color: var(--bg-intensity); }
+      50% { background-color: #1a1a1a; }
+      100% { background-color: var(--bg-intensity); }
+    }
+
+    body {
+      background-color: var(--bg-intensity);
+      color: #f0f0f0;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      padding: 2rem;
+      animation: pulse var(--pulse-speed) infinite;
+    }
+
+    #output {
+      white-space: pre-line;
+      text-align: center;
+      font-size: 1.2rem;
+      max-width: 60ch;
+      margin-bottom: 1rem;
+    }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    button, select {
+      background: none;
+      border: 1px solid #f0f0f0;
+      color: #f0f0f0;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 1rem;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="output">Uruchamianie maszyny pragnącej...</div>
+  <div id="controls">
+    <select id="cycleCount">
+      <option value="5">5 cykli</option>
+      <option value="10">10 cykli</option>
+      <option value="infinite">∞ nieskończoność</option>
+    </select>
+    <button id="restartBtn">🔁 Uruchom ponownie</button>
+    <button id="stopBtn">⏹ Zatrzymaj</button>
+  </div>
+
+  <audio id="audioGlitch" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+  <audio id="audioNotify" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg" preload="auto"></audio>
+
+  <script>
+    const produkcja = [
+      "pierś — usta", "ekran — siatkówka", "dotyk — przewód",
+      "kocham (klik)", "jestem twoim oddechem w urządzeniu"
+    ];
+
+    const przerwanie = [
+      "brak połączenia", "hasło wygasło", "konto zawieszone",
+      "sygnał... przerwany", "ojciec nie pamięta", "nie można odzyskać"
+    ];
+
+    const rejestracja = [
+      "notatka: 21:03 — wyznanie miłości",
+      "lokalizacja: pokój dziecka",
+      "emocja: niska intensywność",
+      "twoja tożsamość została zarchiwizowana"
+    ];
+
+    let stopSignal = false;
+    let currentCycle = null;
+    let currentIntensity = 0;
+
+    function losuj(lista) {
+      return lista[Math.floor(Math.random() * lista.length)];
+    }
+
+    function playSound(type) {
+      const sound = document.getElementById(type);
+      if (sound) {
+        sound.currentTime = 0;
+        sound.play();
+      }
+    }
+
+    function updateIntensity() {
+      currentIntensity = (currentIntensity + 10) % 101;
+      document.documentElement.style.setProperty('--pulse-speed', `${6 - currentIntensity / 25}s`);
+      const bgDarkness = 15 - Math.floor(currentIntensity / 10);
+      const color = `#${bgDarkness.toString(16).padStart(2, '0').repeat(3)}`;
+      document.documentElement.style.setProperty('--bg-intensity', color);
+    }
+
+    async function pokazTekst(tekst, delay = 1200, sound = null) {
+      const output = document.getElementById('output');
+      output.innerHTML += `\n${tekst}`;
+      if (sound) playSound(sound);
+      updateIntensity();
+      return new Promise(resolve => {
+        currentCycle = setTimeout(resolve, delay);
+      });
+    }
+
+    async function maszynaPragnaca(iteracje = 5, infinite = false) {
+      const output = document.getElementById('output');
+      output.innerText = '';
+      currentIntensity = 0;
+      updateIntensity();
+      stopSignal = false;
+      let cycle = 0;
+
+      while ((infinite || cycle < iteracje) && !stopSignal) {
+        await pokazTekst(`--- CYKL ${cycle + 1} ---`, 1000, 'audioGlitch');
+        if (stopSignal) break;
+        await pokazTekst(losuj(produkcja));
+        if (stopSignal) break;
+        await pokazTekst(losuj(produkcja));
+        if (stopSignal) break;
+        await pokazTekst("⟶ PRZERWANIE", 500, 'audioGlitch');
+        if (stopSignal) break;
+        await pokazTekst(losuj(przerwanie));
+        if (stopSignal) break;
+        await pokazTekst(losuj(przerwanie));
+        if (stopSignal) break;
+        await pokazTekst("⟶ REJESTRACJA", 500, 'audioNotify');
+        if (stopSignal) break;
+        await pokazTekst(losuj(rejestracja));
+        if (stopSignal) break;
+        await pokazTekst(losuj(rejestracja));
+        if (stopSignal) break;
+        await pokazTekst("⟳", 1000);
+        cycle++;
+      }
+      if (!stopSignal) await pokazTekst("SYSTEM MILKNIE...", 2000);
+    }
+
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      stopSignal = true;
+      clearTimeout(currentCycle);
+      setTimeout(() => {
+        const select = document.getElementById('cycleCount').value;
+        const infinite = select === 'infinite';
+        const count = infinite ? 0 : parseInt(select);
+        maszynaPragnaca(count, infinite);
+      }, 100);
+    });
+
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      stopSignal = true;
+      clearTimeout(currentCycle);
+      const output = document.getElementById('output');
+      output.innerHTML += '\n🔚 Rytuał przerwany';
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => maszynaPragnaca(5), 1000);
+    });
+  </script>
+</body>
+</html>
