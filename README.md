@@ -1,0 +1,2 @@
+# maszyna-pragnaca
+Maszyna pragnąca
